@@ -1,17 +1,24 @@
-// Markdown в панели справа — плагин страницы Agents Hub (EXTENDING.md, место session.aside, API 1.14).
-// Клик по ссылке на .md (в ленте, карточке вопроса, где угодно на странице) открывает файл в панели справа от разговора
-// сессии: внутри — те же «Файлы» во встроенном окне (embed=1: без списка папки; правка, комментарии, VS Code — как там).
-// Ширину панели тянут за левый край (это делает хаб), закрыть — ✕ или Esc; ⌘/Ctrl-клик — как раньше, новой вкладкой.
-// На узком экране панель — поверх ленты.
+// Markdown in a right panel — an Agents Hub page plugin (EXTENDING.md, place session.aside, API 1.14).
+// A click on a link to an .md file (in the feed, a question card, anywhere on the page) opens the file in a panel to the
+// right of the session's conversation: inside is the same "Files" in an embedded window (embed=1: no folder list;
+// editing, comments, VS Code as there). The panel width is dragged by its left edge (the hub does that), close — ✕ or
+// Esc; ⌘/Ctrl-click — as before, in a new tab. On a narrow screen the panel goes over the feed.
 const MD = /\.(md|markdown)$/i;
 
+// UI text: English by default, Russian for a hub whose language is Russian (hub.lang, API 1.25)
+const TEXT = {
+  en: { newTab: "Open in a new tab", close: "Close the file (Esc)", frame: "File", title: (name) => `File · ${name}` },
+  ru: { newTab: "Открыть в новой вкладке", close: "Закрыть файл (Esc)", frame: "Файл", title: (name) => `Файл · ${name}` },
+};
+
 let hub = null;
-let doc = null;    // { url, name, path } — открытый файл; null — места нет, панель плагина пуста
-let ctx = null;    // ctx места у открытой сессии: open() — показать панель
+let T = TEXT.en;
+let doc = null;    // { url, name, path } — the open file; null — no place, the plugin's panel is empty
+let ctx = null;    // the place's ctx at the open session: open() — show the panel
 
 const filesPort = () => String(hub.snapshot()?.files_port || 8788);
 
-// ссылка на .md в «Файлах»: /open?path=… или /#/<корень>/<путь>; file:///… — тоже в «Файлы»
+// a link to an .md file in "Files": /open?path=… or /#/<root>/<path>; file:///… — into "Files" too
 function mdLink(a) {
   if (!a || !a.href) return null;
   let u;
@@ -30,7 +37,7 @@ function mdLink(a) {
   return u.pathname === "/" && MD.test(route) ? { url: u, path: route.replace(/^\//, "") } : null;
 }
 
-// адрес встроенного окна: тот же файл с embed=1 (в запросе /open или в хеше)
+// the embedded window's address: the same file with embed=1 (in the /open query or in the hash)
 function embedded(u) {
   const src = new URL(u.href);
   if (src.pathname === "/open") src.searchParams.set("embed", "1");
@@ -47,7 +54,7 @@ function open(link) {
 function close() {
   if (!doc) return false;
   doc = null;
-  hub.redraw();    // место пустое — панели нет (или там другой плагин)
+  hub.redraw();    // the place is empty — no panel (or another plugin is there)
   return true;
 }
 
@@ -69,38 +76,39 @@ function render(root) {
     const tab = hub.el("a", "btn quiet mdp-tab", "↗");
     tab.target = "_blank";
     tab.rel = "noopener";
-    tab.title = "Открыть в новой вкладке";
-    head.append(name, tab, button("mdp-close", "✕", "Закрыть файл (Esc)", close));
+    tab.title = T.newTab;
+    head.append(name, tab, button("mdp-close", "✕", T.close, close));
     frame = hub.el("iframe", "mdp-frame");
-    frame.title = "Файл";
+    frame.title = T.frame;
     root.replaceChildren(head, frame);
   }
   root.querySelector(".mdp-name").textContent = doc.name;
   root.querySelector(".mdp-name").title = doc.path;
   root.querySelector(".mdp-tab").href = doc.url;
-  if (frame.dataset.src !== doc.src) frame.src = frame.dataset.src = doc.src;   // тот же файл — не перезагружать
+  if (frame.dataset.src !== doc.src) frame.src = frame.dataset.src = doc.src;   // the same file — do not reload
 }
 
 export default function register(h) {
   hub = h;
+  T = hub.lang === "ru" ? TEXT.ru : TEXT.en;
   hub.addStyle("md-panel.css");
   hub.addSlot("session.aside", {
     id: "md",
-    order: -1,   // файл открыли только что — он и в панели первым
-    title: () => (doc ? `Файл · ${doc.name}` : ""),
+    order: -1,   // the file was just opened — it comes first in the panel
+    title: () => (doc ? T.title(doc.name) : ""),
     render(root, snap, c) { ctx = c; root.classList.add("mdp"); render(root); },
   });
   document.addEventListener("click", (e) => {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    if (e.target.closest?.(".mdp")) return;   // внутри самой панели — как есть
-    if (!location.hash.startsWith("#/s/")) return;   // панель — у открытой сессии; в других видах ссылка как была
+    if (e.target.closest?.(".mdp")) return;   // inside the panel itself — as is
+    if (!location.hash.startsWith("#/s/")) return;   // the panel belongs to an open session; in other views a link works as before
     const link = mdLink(e.target.closest?.("a"));
     if (!link) return;
     e.preventDefault();
     e.stopPropagation();
     open(link);
   }, true);
-  // Esc закрывает файл раньше, чем остановит ход сессии
+  // Esc closes the file before it stops the session's turn
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !document.querySelector("dialog[open]") && close()) {
       e.preventDefault();

@@ -1,8 +1,8 @@
 {
   "name": "md-panel",
   "icon": "icon.svg",
-  "description": "Markdown по клику — в панели справа от разговора сессии: файл рядом с тредом, тред остаётся на месте; правка, комментарии и VS Code — как в «Файлах»",
-  "why": "Читать отчёт или план сессии, не уходя из разговора и не теряя место в ленте",
+  "description": "Markdown on a click, in a panel to the right of the session's conversation: the file next to the thread, the thread stays in place; editing, comments and VS Code as in \"Files\"",
+  "why": "Read a session's report or plan without leaving the conversation and without losing your place in the feed",
   "version": "1.0.0",
   "hub": "^1.14",
   "web": "main.js"
